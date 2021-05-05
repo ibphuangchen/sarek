@@ -68,7 +68,6 @@ def helpMessage() {
       --trim_fastq                 [bool] Run Bbduk
       --ftl                     [int] Instructs Bbduk to remove bp from the left end 
       --flr                     [int] Instructs Bbduk to remove bp to the the right end 
-      --trim_nextseq                [int] Instructs Bbduk to apply the --nextseq=X option, to trim based on quality after removing poly-G tails
       --save_trimmed               [bool] Save trimmed FastQ file intermediates
       --split_fastq                 [int] Specify how many reads should be contained in the split fastq file
                                           Default: no split
@@ -955,7 +954,7 @@ process Bbduk {
     publishDir "${params.outdir}/Reports/${idSample}/Bbduk/${idSample}_${idRun}", mode: params.publish_dir_mode,
       saveAs: {filename ->
         if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
-        else if (filename.indexOf("trimming_report.txt") > 0) "logs/$filename"
+        else if (filename.indexOf("_stat.txt") > 0) "logs/$filename"
         else if (params.save_trimmed) filename
         else null
       }
