@@ -65,12 +65,10 @@ def helpMessage() {
                                           Default: None
 
     Modify fastqs (trim/split):
-      --trim_fastq                 [bool] Run Trim Galore
-      --clip_r1                     [int] Instructs Trim Galore to remove bp from the 5' end of read 1 (or single-end reads)
-      --clip_r2                     [int] Instructs Trim Galore to remove bp from the 5' end of read 2 (paired-end reads only)
-      --three_prime_clip_r1         [int] Instructs Trim Galore to remove bp from the 3' end of read 1 AFTER adapter/quality trimming has been performed
-      --three_prime_clip_r2         [int] Instructs Trim Galore to remove bp from the 3' end of read 2 AFTER adapter/quality trimming has been performed
-      --trim_nextseq                [int] Instructs Trim Galore to apply the --nextseq=X option, to trim based on quality after removing poly-G tails
+      --trim_fastq                 [bool] Run Bbduk
+      --ftl                     [int] Instructs Bbduk to remove bp from the left end 
+      --flr                     [int] Instructs Bbduk to remove bp to the the right end 
+      --trim_nextseq                [int] Instructs Bbduk to apply the --nextseq=X option, to trim based on quality after removing poly-G tails
       --save_trimmed               [bool] Save trimmed FastQ file intermediates
       --split_fastq                 [int] Specify how many reads should be contained in the split fastq file
                                           Default: no split
@@ -403,11 +401,8 @@ if (params.trim_fastq || params.split_fastq) summary['Modify fastqs (trim/split)
 
 if (params.trim_fastq) {
     summary['Fastq trim']         = "Fastq trim selected"
-    summary['Trim R1']            = "${params.clip_r1} bp"
-    summary['Trim R2']            = "${params.clip_r2} bp"
-    summary["Trim 3' R1"]         = "${params.three_prime_clip_r1} bp"
-    summary["Trim 3' R2"]         = "${params.three_prime_clip_r2} bp"
-    summary['NextSeq Trim']       = "${params.trim_nextseq} bp"
+    summary['Force trim left']            = "${params.ftl} bp"
+    summary['Force trim right']            = "${params.ftr} bp"
     summary['Saved Trimmed Fastq'] = params.save_trimmed ? 'Yes' : 'No'
 }
 if (params.split_fastq)          summary['Reads in fastq']                   = params.split_fastq
@@ -891,13 +886,13 @@ if (params.split_fastq){
 
 inputPairReads = inputPairReads.dump(tag:'INPUT')
 
-(inputPairReads, inputPairReadsTrimGalore, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
+(inputPairReads, inputPairReadsBbduk, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
 
 if (params.umi) inputPairReads.close()
 else inputPairReadsUMI.close()
 
 if (params.trim_fastq) inputPairReads.close()
-else inputPairReadsTrimGalore.close()
+else inputPairReadsBbduk.close()
 
 // STEP 0.5: QC ON READS
 
@@ -952,12 +947,12 @@ fastQCReport = fastQCFQReport.mix(fastQCBAMReport)
 
 fastQCReport = fastQCReport.dump(tag:'FastQC')
 
-process TrimGalore {
-    label 'TrimGalore'
+process Bbduk {
+    label 'Bbduk'
 
     tag "${idPatient}-${idRun}"
 
-    publishDir "${params.outdir}/Reports/${idSample}/TrimGalore/${idSample}_${idRun}", mode: params.publish_dir_mode,
+    publishDir "${params.outdir}/Reports/${idSample}/Bbduk/${idSample}_${idRun}", mode: params.publish_dir_mode,
       saveAs: {filename ->
         if (filename.indexOf("_fastqc") > 0) "FastQC/$filename"
         else if (filename.indexOf("trimming_report.txt") > 0) "logs/$filename"
@@ -966,44 +961,32 @@ process TrimGalore {
       }
 
     input:
-        set idPatient, idSample, idRun, file("${idSample}_${idRun}_R1.fastq.gz"), file("${idSample}_${idRun}_R2.fastq.gz") from inputPairReadsTrimGalore
+        set idPatient, idSample, idRun, file("${idSample}_${idRun}_R1.fastq.gz"), file("${idSample}_${idRun}_R2.fastq.gz") from inputPairReadsBbduk
 
     output:
-        file("*.{html,zip,txt}") into trimGaloreReport
-        set idPatient, idSample, idRun, file("${idSample}_${idRun}_R1_val_1.fq.gz"), file("${idSample}_${idRun}_R2_val_2.fq.gz") into outputPairReadsTrimGalore
+        file("*.{html,zip,txt}") into bbdukReport
+        set idPatient, idSample, idRun, file("${idSample}_${idRun}_R1_val_1.fq.gz"), file("${idSample}_${idRun}_R2_val_2.fq.gz") into outputPairReadsBbduk
 
     when: params.trim_fastq
 
     script:
-    // Calculate number of --cores for TrimGalore based on value of task.cpus
-    // See: https://github.com/FelixKrueger/TrimGalore/blob/master/Changelog.md#version-060-release-on-1-mar-2019
-    // See: https://github.com/nf-core/atacseq/pull/65
-    def cores = 1
-    if (task.cpus) {
-      cores = (task.cpus as int) - 4
-      if (cores < 1) cores = 1
-      if (cores > 4) cores = 4
-      }
-    c_r1 = params.clip_r1 > 0 ? "--clip_r1 ${params.clip_r1}" : ''
-    c_r2 = params.clip_r2 > 0 ? "--clip_r2 ${params.clip_r2}" : ''
-    tpc_r1 = params.three_prime_clip_r1 > 0 ? "--three_prime_clip_r1 ${params.three_prime_clip_r1}" : ''
-    tpc_r2 = params.three_prime_clip_r2 > 0 ? "--three_prime_clip_r2 ${params.three_prime_clip_r2}" : ''
-    nextseq = params.trim_nextseq > 0 ? "--nextseq ${params.trim_nextseq}" : ''
+    ftl = params.ftl > 0 ? "ftr=${params.ftl}" : ''
+    ftr = params.ftr > 0 ? "ftl=${params.ftr}" : ''
     """
-    trim_galore \
-         --cores ${cores} \
-        --paired \
-        --fastqc \
-        --gzip \
-        ${c_r1} ${c_r2} \
-        ${tpc_r1} ${tpc_r2} \
-        ${nextseq} \
-        ${idSample}_${idRun}_R1.fastq.gz ${idSample}_${idRun}_R2.fastq.gz
+    bbduk.sh \
+        in1=${idSample}_${idRun}_R1.fastq.gz \
+        in2=${idSample}_${idRun}_R2.fastq.gz \
+        out1=${idSample}_${idRun}_R1_val_1.fq.gz \
+        out2=${idSample}_${idRun}_R2_val_2.fq.gz \
+        t=${task.cpus} \
+        tpe tbo \
+        stat=${idSample}_${idRun}_bbduk_stat.txt \
+        ktrim=r \
+        mink=11 ${ftl} ${flr}
 
-    mv *val_1_fastqc.html "${idSample}_${idRun}_R1.trimmed_fastqc.html"
-    mv *val_2_fastqc.html "${idSample}_${idRun}_R2.trimmed_fastqc.html"
-    mv *val_1_fastqc.zip "${idSample}_${idRun}_R1.trimmed_fastqc.zip"
-    mv *val_2_fastqc.zip "${idSample}_${idRun}_R2.trimmed_fastqc.zip"
+    fastqc -t ${task.cpus} \
+            -q ${idSample}_${idRun}_R1_val_1.fq.gz \
+            ${idSample}_${idRun}_R2_val_2.fq.gz
     """
 }
 
@@ -1148,7 +1131,7 @@ if (params.umi) {
     else inputPairReads = consensus_bam_ch
 }
 else {
-    if (params.trim_fastq) inputPairReads = outputPairReadsTrimGalore
+    if (params.trim_fastq) inputPairReads = outputPairReadsBbduk
     else inputPairReads = inputPairReads.mix(inputBam)
     inputPairReads = inputPairReads.dump(tag:'INPUT before mapping')
 
@@ -3866,7 +3849,7 @@ process MultiQC {
         file ('bamQC/*') from bamQCReport.collect().ifEmpty([])
         file ('BCFToolsStats/*') from bcftoolsReport.collect().ifEmpty([])
         file ('FastQC/*') from fastQCReport.collect().ifEmpty([])
-        file ('TrimmedFastQC/*') from trimGaloreReport.collect().ifEmpty([])
+        file ('TrimmedFastQC/*') from bbdukReport.collect().ifEmpty([])
         file ('MarkDuplicates/*') from duplicates_marked_report.collect().ifEmpty([])
         file ('DuplicatesMarked/*.recal.table') from baseRecalibratorReport.collect().ifEmpty([])
         file ('SamToolsStats/*') from samtoolsStatsReport.collect().ifEmpty([])
