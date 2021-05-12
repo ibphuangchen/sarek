@@ -66,6 +66,7 @@ def helpMessage() {
 
     Modify fastqs (trim/split):
       --trim_fastq                 [bool] Run Bbduk
+      --bbduk_ref               [str] The reference file used for bbduk trimming
       --ftl                     [int] Instructs Bbduk to remove bp from the left end 
       --ftr                     [int] Instructs Bbduk to remove bp to the the right end 
       --save_trimmed               [bool] Save trimmed FastQ file intermediates
@@ -971,6 +972,7 @@ process Bbduk {
     script:
     ftl = params.ftl > 0 ? "ftr=${params.ftl}" : ''
     ftr = params.ftr > 0 ? "ftl=${params.ftr}" : ''
+    ref = params.bbduk_ref ? "ref=${params.bbduk_ref}" : ""
     """
     bbduk.sh \
         in1=${idSample}_${idRun}_R1.fastq.gz \
@@ -981,7 +983,7 @@ process Bbduk {
         tpe tbo \
         stats=${idSample}_${idRun}_bbduk_stat.txt \
         ktrim=r \
-        mink=11 ${ftl} ${ftr}
+        mink=11 ${ftl} ${ftr} ${ref}
 
     fastqc -t ${task.cpus} \
             -q ${idSample}_${idRun}_R1_val_1.fq.gz \
