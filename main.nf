@@ -979,7 +979,7 @@ process Bbduk {
         out2=${idSample}_${idRun}_R2_val_2.fq.gz \
         t=${task.cpus} \
         tpe tbo \
-        stat=${idSample}_${idRun}_bbduk_stat.txt \
+        stats=${idSample}_${idRun}_bbduk_stat.txt \
         ktrim=r \
         mink=11 ${ftl} ${ftr}
 
