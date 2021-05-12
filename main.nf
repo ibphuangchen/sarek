@@ -67,7 +67,7 @@ def helpMessage() {
     Modify fastqs (trim/split):
       --trim_fastq                 [bool] Run Bbduk
       --ftl                     [int] Instructs Bbduk to remove bp from the left end 
-      --flr                     [int] Instructs Bbduk to remove bp to the the right end 
+      --ftr                     [int] Instructs Bbduk to remove bp to the the right end 
       --save_trimmed               [bool] Save trimmed FastQ file intermediates
       --split_fastq                 [int] Specify how many reads should be contained in the split fastq file
                                           Default: no split
@@ -948,7 +948,7 @@ fastQCReport = fastQCReport.dump(tag:'FastQC')
 
 process Bbduk {
     label 'Bbduk'
-
+    label 'cpus_max'
     tag "${idPatient}-${idRun}"
 
     publishDir "${params.outdir}/Reports/${idSample}/Bbduk/${idSample}_${idRun}", mode: params.publish_dir_mode,
@@ -981,7 +981,7 @@ process Bbduk {
         tpe tbo \
         stat=${idSample}_${idRun}_bbduk_stat.txt \
         ktrim=r \
-        mink=11 ${ftl} ${flr}
+        mink=11 ${ftl} ${ftr}
 
     fastqc -t ${task.cpus} \
             -q ${idSample}_${idRun}_R1_val_1.fq.gz \
