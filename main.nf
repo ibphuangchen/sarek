@@ -3807,7 +3807,44 @@ process VEPmerge {
 
 vepReportMerge = vepReportMerge.dump(tag:'VEP')
 
-vcfCompressVCFvep = vepVCF.mix(vepVCFmerge)
+mixVepVCF = vepVCF.mix(vepVCFmerge)
+(vcf2mafConvert,vcfCompressVCFvep) = mixVepVCF.into(2)
+vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka'] && it[1]==~ '.*vs.*'}
+
+//generate tab-delimited maf file - by Chen
+process vcf2mafConvert {
+    tag "${idSample} - ${vcf}"
+
+    publishDir "${params.outdir}/Annotation/${idSample}/VEP", mode: params.publish_dir_mode
+
+    input:
+        set variantCaller, idSample, file(vcf) from vcf2mafConvert
+
+    ouput:
+        set variantCaller, idSample, file("*.vcf.gz"), file("*.maf.tsv") into vcf2mafFinal
+
+    
+    script:
+        tumorID = idSample.replaceAll("(.*)_vs.*",'$1')
+        normalID = idSample.replaceAll(".*vs_(.*)",'$1')
+        refFasta = params.genome=='GRCh37' ? "/home/p_eclipse_combio/.vep/homo_sapiens/104_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz":"/home/p_eclipse_combio/.vep/homo_sapiens/104_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz" 
+    
+    """
+    sed -i 's/chr//g' $vcf
+    
+    vcf2maf.pl \
+	  --input-vcf $vcf \
+	  --output-maf ${idSample}.maf.tsv\
+	  --vep-path /opt/conda/envs/nf-core-sarek-2.7/bin \
+	  --ncbi-build ${params.genome} \
+	  --species homo_sapiens \
+	  --ref-fasta $referenceFasta \
+	  --tumor-id $tumorID \
+	  --normal-id $normalID
+    """
+}
+
+
 
 // STEP COMPRESS AND INDEX VCF.2 - VEP
 
