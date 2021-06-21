@@ -3851,7 +3851,7 @@ vepReportMerge = vepReportMerge.dump(tag:'VEP')
 
 mixVepVCF = vepVCF.mix(vepVCFmerge)
 (vcf2mafConvert,vcfCompressVCFvep) = mixVepVCF.into(2)
-vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka'] && it[1]==~ '.*vs.*'}
+vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka', 'VarScan2'] && it[1]==~ '.*vs.*'}
 
 //generate tab-delimited maf file - by Chen
 process vcf2mafConvert {
@@ -3876,7 +3876,7 @@ process vcf2mafConvert {
     
     vcf2maf.pl \
 	  --input-vcf $vcf \
-	  --output-maf ${idSample}.maf.tsv\
+	  --output-maf ${idSample}.${variantCaller}.maf.tsv\
 	  --vep-path /opt/conda/envs/nf-core-sarek-2.7/bin \
 	  --ncbi-build ${params.genome} \
 	  --species homo_sapiens \
@@ -3886,7 +3886,7 @@ process vcf2mafConvert {
     """
 }
 
-
+vcf2mafFinal=vcf2mafFinal.dump(tag:'vcf2mafFinal')
 
 // STEP COMPRESS AND INDEX VCF.2 - VEP
 
