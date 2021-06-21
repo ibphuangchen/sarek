@@ -3128,7 +3128,7 @@ process Mpileup {
         set idPatient, idSample, file("${prefix}${idSample}.pileup") into mpileupMerge
         set idPatient, idSample into tsv_mpileup
 
-    when: 'controlfreec' in tools || 'mpileup' in tools
+    when: 'controlfreec' in tools || 'mpileup' in tools || 'varscan2' in tools
 
     script:
     prefix = params.no_intervals ? "" : "${intervalBed.baseName}_"
@@ -3186,7 +3186,7 @@ process MergeMpileup {
     output:
         set idPatient, idSample, file("${idSample}.pileup") into mpileupOut
 
-    when: !(params.no_intervals) && 'controlfreec' in tools || 'mpileup' in tools
+    when: !(params.no_intervals) && 'controlfreec' in tools || 'mpileup' in tools || 'varscan2' in tools
 
     script:
     """
@@ -3216,6 +3216,40 @@ mpileupOut = mpileupOut.map {
     idSampleTumor, mpileupOutTumor ->
     [idPatientNormal, idSampleNormal, idSampleTumor, mpileupOutNormal, mpileupOutTumor]
 }
+
+(mpileupOut,mpileup4VarScan) = mpileupOut.into(2)
+
+//STEP VarScan2 - by Chen Huang
+process VarScan2Somatic {
+    label 'memory_max'
+
+    tag "${idSampleTumor}_vs_${idSampleNormal}"
+
+    publishDir "${params.outdir}/VariantCalling/${idSampleTumor}_vs_${idSampleNormal}/VarScan2", mode: params.publish_dir_mode
+    
+    input:
+        set idPatient, idSampleNormal, idSampleTumor, file(mpileupNormal), file(mpileupTumor) from mpileup4VarScan    
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fai
+        file(targetBED) from ch_target_bed
+    
+    output:
+        set val("VarScan2"), idPatient, val("${idSampleTumor}_vs_${idSampleNormal}"), file("*.vcf") into vcfVarScan2
+
+    when: 'varscan2' in tools
+
+    script:
+    """
+        java -jar VarScan.jar somatic \
+            ${mpileupNormal} ${mpileupTumor} \
+            ${idSampleTumor}_vs_${idSampleNormal} \
+            --output-vcf 1 \
+
+    """
+}
+
+vcfVarScan2=vcfVarScan2.dump(tag: "vcfVarScan2")
 
 // STEP CONTROLFREEC.1 - CONTROLFREEC
 
@@ -3448,6 +3482,7 @@ controlFreecVizOutSingle.dump(tag:'ControlFreecVizSingle')
 (vcfStrelkaIndels, vcfStrelkaSNVS) = vcfStrelka.into(2)
 (vcfStrelkaBPIndels, vcfStrelkaBPSNVS) = vcfStrelkaBP.into(2)
 (vcfMantaSomaticSV, vcfMantaDiploidSV) = vcfManta.into(2)
+(vcfVarScan2SomaticIndels, vcfVarScan2SomaticSV) = vcfVarScan2.into(2)
 
 vcfKeep = Channel.empty().mix(
     filteredMutect2Output.map{
@@ -3497,7 +3532,14 @@ vcfKeep = Channel.empty().mix(
     vcfTIDDIT.map {
         variantCaller, idPatient, idSample, vcf, tbi ->
         [variantCaller, idSample, vcf]
-    })
+    },
+    vcfVarScan2SomaticSV.map {
+        variantCaller, idPatient, idSample, vcf ->
+        [variantCaller, idSample, vcf[0]]
+    },
+    vcfVarScan2SomaticIndels.map {
+        variantCaller, idPatient, idSample, vcf ->
+        [variantCaller, idSample, vcf[1]])
 
 (vcfBCFtools, vcfVCFtools, vcfAnnotation) = vcfKeep.into(3)
 
