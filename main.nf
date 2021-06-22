@@ -4290,7 +4290,9 @@ def defineToolList() {
         'tiddit',
         'tnscope',
         'vep',
-        'msisensor'
+        'msisensor',
+        'varscan2',
+        'vcf2maf'
     ]
 }
 
