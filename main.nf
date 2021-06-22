@@ -3243,11 +3243,11 @@ process VarScan2Germline {
         'varscan2' in tools
     script:
     """
-        java -jar VarScan.v2.3.9.jar \
+        varscan \
             mpileup2snp ${mpileup} \
             --output-vcf 1 > ${idSample}.snp.vcf
 
-        java -jar VarScan.v2.3.9.jar \
+        varscan \
              mpileup2indel ${mpileup} \
              --output-vcf 1 > ${idSample}.indel.vcf
     """
@@ -3273,7 +3273,7 @@ process VarScan2Somatic {
 
     script:
     """
-        java -jar VarScan.jar somatic \
+        varscan somatic \
             ${mpileupNormal} ${mpileupTumor} \
             ${idSampleTumor}_vs_${idSampleNormal} \
             --output-vcf 1 \
