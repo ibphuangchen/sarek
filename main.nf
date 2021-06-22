@@ -3204,6 +3204,14 @@ mpileupOutTumor = Channel.create()
 
 if (step == 'controlfreec') mpileupOut = inputSample
 
+(mpileupOut,mpileupSingle4VarScan)=mpileupOut.into(2)
+
+//is this mapping to list necessary?
+mpileupSingle4VarScan=mpileupSingle4VarScan.map {
+    idPatient, idSample, mpileOut ->
+    [idPatient, idSample, mpileOut]
+}
+
 mpileupOut
     .choice(mpileupOutTumor, mpileupOutNormal) {statusMap[it[0], it[1]] == 0 ? 1 : 0}
 
@@ -3220,6 +3228,34 @@ mpileupOut = mpileupOut.map {
 (mpileupOut,mpileup4VarScan) = mpileupOut.into(2)
 
 //STEP VarScan2 - by Chen Huang
+process VarScan2Germline {
+    label 'memory_max'
+    tag "${idSample}"
+    publishDir "${params.outdir}/VariantCalling/${idSample}/VarScan2", mode: params.publish_dir_mode
+    
+    input:
+        set idPatient, idSample, file(mpileup) from mpileupSingle4VarScan
+
+    output:
+        set val("Strelka"), idPatient, idSample, file("*.vcf") into vcfVarScan2Single
+
+    when:
+        'varscan2' in tools
+    script:
+    """
+        java -jar VarScan.v2.3.9.jar \
+            mpileup2snp ${mpileup} \
+            --output-vcf 1 > ${idSample}.snp.vcf
+
+        java -jar VarScan.v2.3.9.jar \
+             mpileup2indel ${mpileup} \
+             --output-vcf 1 > ${idSample}.indel.vcf
+    """
+}
+
+vcfVarScan2Single = vcfVarScan2Single.dump(tag:'vcfVarScan2_germline')
+
+
 process VarScan2Somatic {
     label 'memory_max'
 
@@ -3229,11 +3265,7 @@ process VarScan2Somatic {
     
     input:
         set idPatient, idSampleNormal, idSampleTumor, file(mpileupNormal), file(mpileupTumor) from mpileup4VarScan    
-        file(dict) from ch_dict
-        file(fasta) from ch_fasta
-        file(fastaFai) from ch_fai
-        file(targetBED) from ch_target_bed
-    
+       
     output:
         set val("VarScan2"), idPatient, val("${idSampleTumor}_vs_${idSampleNormal}"), file("*.vcf") into vcfVarScan2
 
@@ -3249,7 +3281,7 @@ process VarScan2Somatic {
     """
 }
 
-vcfVarScan2=vcfVarScan2.dump(tag: "vcfVarScan2")
+vcfVarScan2=vcfVarScan2.dump(tag: "vcfVarScan2_somatic")
 
 // STEP CONTROLFREEC.1 - CONTROLFREEC
 
