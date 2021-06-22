@@ -3897,6 +3897,8 @@ process vcf2mafConvert {
     ouput:
         set variantCaller, idSample, file("*.vcf.gz"), file("*.maf.tsv") into vcf2mafFinal
 
+    when:
+        'vcf2maf' in tools
     
     script:
         tumorID = idSample.replaceAll("(.*)_vs.*",'$1')
