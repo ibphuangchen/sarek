@@ -3515,6 +3515,7 @@ controlFreecVizOutSingle.dump(tag:'ControlFreecVizSingle')
 (vcfStrelkaBPIndels, vcfStrelkaBPSNVS) = vcfStrelkaBP.into(2)
 (vcfMantaSomaticSV, vcfMantaDiploidSV) = vcfManta.into(2)
 (vcfVarScan2SomaticIndels, vcfVarScan2SomaticSV) = vcfVarScan2.into(2)
+(vcfVarScan2SingleSV, vcfVarScan2SingleIndels) = vcfVarScan2Single.into(2)
 
 vcfKeep = Channel.empty().mix(
     filteredMutect2Output.map{
@@ -3571,7 +3572,17 @@ vcfKeep = Channel.empty().mix(
     },
     vcfVarScan2SomaticIndels.map {
         variantCaller, idPatient, idSample, vcf ->
-        [variantCaller, idSample, vcf[1]])
+        [variantCaller, idSample, vcf[1]]
+    },
+    vcfVarScan2SingleSV.map {
+        variantCaller, idPatient, idSample, vcf ->
+        [variantCaller, idSample, vcf[0]]
+    },
+    vcfVarScan2SingleIndels.map {
+    variantCaller, idPatient, idSample, vcf ->
+    [variantCaller, idSample, vcf[1]]
+    }
+)
 
 (vcfBCFtools, vcfVCFtools, vcfAnnotation) = vcfKeep.into(3)
 
