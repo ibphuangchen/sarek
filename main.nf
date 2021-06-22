@@ -3905,7 +3905,7 @@ process vcf2mafConvert {
     input:
         set variantCaller, idSample, file(vcf) from vcf2mafConvert
 
-    ouput:
+    output:
         set variantCaller, idSample, file("*.vcf.gz"), file("*.maf.tsv") into vcf2mafFinal
 
     when:
