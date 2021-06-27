@@ -3680,7 +3680,9 @@ if (step == 'annotate') {
         Channel.fromPath("${params.outdir}/VariantCalling/*/Strelka/*{somatic,variant}*.vcf.gz")
           .flatten().map{vcf -> ['Strelka', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
         Channel.fromPath("${params.outdir}/VariantCalling/*/TIDDIT/*.vcf.gz")
-          .flatten().map{vcf -> ['TIDDIT', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
+          .flatten().map{vcf -> ['TIDDIT', vcf.minus(vcf.fileName)[-2].toString(), vcf]},
+        Channel.fromPath("${params.outdir}/VariantCalling/*/VarScan2/*.vcf")
+          .flatten().map{vcf -> ['VarScan2', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
       ).choice(vcfToAnnotate, vcfNoAnnotate) {
         annotate_tools == [] || (annotate_tools != [] && it[0] in annotate_tools) ? 0 : 1
       }
@@ -3697,7 +3699,7 @@ if (step == 'annotate') {
 
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
-(vcfSnpeff, vcfVep) = vcfAnnotation.into(2)
+(vcfSnpeff, vcfVep, vcf2mafConvert) = vcfAnnotation.into(3)
 
 vcfVep = vcfVep.map {
   variantCaller, idSample, vcf ->
@@ -3893,14 +3895,16 @@ process VEPmerge {
 vepReportMerge = vepReportMerge.dump(tag:'VEP')
 
 mixVepVCF = vepVCF.mix(vepVCFmerge)
-(vcf2mafConvert,vcfCompressVCFvep) = mixVepVCF.into(2)
+
+
+//generate tab-delimited maf file - by Chen Huang
+
 vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka', 'VarScan2'] && it[1]==~ '.*vs.*'}
 
-//generate tab-delimited maf file - by Chen
 process vcf2mafConvert {
     tag "${idSample} - ${vcf}"
 
-    publishDir "${params.outdir}/Annotation/${idSample}/VEP", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/Annotation/${idSample}/MAF", mode: params.publish_dir_mode
 
     input:
         set variantCaller, idSample, file(vcf) from vcf2mafConvert
