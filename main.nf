@@ -310,6 +310,8 @@ if (tsvPath) {
     log.info "Trying automatic annotation on files in the VariantCalling/ directory"
 } else exit 1, 'No sample were defined, see --help'
 
+
+inputSample.dump(tag:'inputSample')
 (genderMap, statusMap, inputSample) = extractInfos(inputSample)
 
 /*
