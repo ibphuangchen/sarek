@@ -3658,8 +3658,7 @@ vcftoolsReport = vcftoolsReport.dump(tag:'VCFTools')
 if (step == 'annotate') {
     vcfToAnnotate = Channel.create()
     vcfNoAnnotate = Channel.create()
-
-    if (tsvPath == []) {
+    if (tsvPath == [] || !tsvPath) {
     // Sarek, by default, annotates all available vcfs that it can find in the VariantCalling directory
     // Excluding vcfs from FreeBayes, and g.vcf from HaplotypeCaller
     // Basically it's: results/VariantCalling/*/{HaplotypeCaller,Manta,Mutect2,SentieonDNAseq,SentieonDNAscope,SentieonTNscope,Strelka,TIDDIT}/*.vcf.gz
@@ -3698,6 +3697,8 @@ if (step == 'annotate') {
     vcfNoAnnotate.close()
     vcfAnnotation = vcfAnnotation.mix(vcfToAnnotate)
 }
+
+vcfAnnotation.dump(tag:'vcfAnnotation')
 
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
