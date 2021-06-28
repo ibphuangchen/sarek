@@ -3896,7 +3896,7 @@ process VEPmerge {
 
 vepReportMerge = vepReportMerge.dump(tag:'VEP')
 
-mixVepVCF = vepVCF.mix(vepVCFmerge)
+vcfCompressVCFvep = vepVCF.mix(vepVCFmerge)
 
 
 //generate tab-delimited maf file - by Chen Huang
