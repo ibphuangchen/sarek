@@ -3904,6 +3904,8 @@ vcfCompressVCFvep = vepVCF.mix(vepVCFmerge)
 
 vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka', 'VarScan2'] && it[1]==~ '.*vs.*'}
 
+vcf2mafConvert.dump(tag:'vcf2mafConvert')
+
 process vcf2mafConvert {
     tag "${idSample} - ${vcf}"
 
@@ -3913,7 +3915,7 @@ process vcf2mafConvert {
         set variantCaller, idSample, file(vcf) from vcf2mafConvert
 
     output:
-        set variantCaller, idSample, file("*.vcf.gz"), file("*.maf.tsv") into vcf2mafFinal
+        set variantCaller, idSample, file("*.vcf"), file("*.maf.tsv") into vcf2mafFinal
 
     when:
         'vcf2maf' in tools
@@ -3921,20 +3923,29 @@ process vcf2mafConvert {
     script:
         tumorID = idSample.replaceAll("(.*)_vs.*",'$1')
         normalID = idSample.replaceAll(".*vs_(.*)",'$1')
-        refFasta = params.genome=='GRCh37' ? "/home/p_eclipse_combio/.vep/homo_sapiens/104_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz":"/home/p_eclipse_combio/.vep/homo_sapiens/104_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz" 
-    
+        refFasta = params.genome=='GRCh37' ? "/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz":"/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz" 
+        vepCache = "/rsrch3/home/thera_dis/p_eclipse_combio/.vep" 
     """
-    sed -i 's/chr//g' $vcf
+    if [[ "$vcf" =~ .*gz ]];then 
+        vcf_unzip=`echo $vcf|sed 's/.gz//g'`
+        gunzip -c $vcf > \$vcf_unzip 
+    else 
+        vcf_unzip=$vcf
+    fi
+    
+    sed -i 's/chr//g' \$vcf_unzip
     
     vcf2maf.pl \
-	  --input-vcf $vcf \
+	  --input-vcf \$vcf_unzip \
 	  --output-maf ${idSample}.${variantCaller}.maf.tsv\
 	  --vep-path /opt/conda/envs/nf-core-sarek-2.7/bin \
 	  --ncbi-build ${params.genome} \
+    --vep-data $vepCache \
 	  --species homo_sapiens \
-	  --ref-fasta $referenceFasta \
+	  --ref-fasta $refFasta \
 	  --tumor-id $tumorID \
-	  --normal-id $normalID
+	  --normal-id $normalID \
+    --cache-version 104
     """
 }
 
