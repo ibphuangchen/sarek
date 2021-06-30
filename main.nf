@@ -3902,9 +3902,8 @@ vcfCompressVCFvep = vepVCF.mix(vepVCFmerge)
 
 //generate tab-delimited maf file - by Chen Huang
 
-vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka', 'VarScan2'] && it[1]==~ '.*vs.*'}
+vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka','VarScan2','HaplotypeCaller']}
 
-vcf2mafConvert.dump(tag:'vcf2mafConvert')
 
 process vcf2mafConvert {
     tag "${idSample} - ${vcf}"
@@ -3921,11 +3920,18 @@ process vcf2mafConvert {
         'vcf2maf' in tools
     
     script:
-        tumorID = variantCaller=="Mutect2" ? idSample.replaceAll("(.*)_vs.*",'$1'):"TUMOR"
-        normalID = variantCaller=="Mutect2" ? idSample.replaceAll(".*vs_(.*)",'$1'):"NORMAL"
+        if(idSample ==~ '.*vs.*'){
+            tumorID = variantCaller=="Mutect2" ? idSample.replaceAll("(.*)_vs.*",'$1'):"TUMOR"
+            normalID = variantCaller=="Mutect2" ? idSample.replaceAll(".*vs_(.*)",'$1'):"NORMAL"
+        }else{
+            tumorID = variantCaller=='VarScan2' ? "Sample1":idSample
+            normalID = "NORMAL"
+        }
+            
+        
         refFasta = params.genome=='GRCh37' ? "/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz":"/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz" 
         vepCache = "/rsrch3/home/thera_dis/p_eclipse_combio/.vep"
-        maf_name = vcf.toString().replaceAll('vcf.*','') 
+        maf_name = vcf.toString().replaceAll('\\.vcf.*','') 
     """
     if [[ "$vcf" =~ .*gz ]];then 
         vcf_unzip=`echo $vcf|sed 's/.gz//g'`
