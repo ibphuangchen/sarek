@@ -3924,7 +3924,8 @@ process vcf2mafConvert {
         tumorID = variantCaller=="Mutect2" ? idSample.replaceAll("(.*)_vs.*",'$1'):"TUMOR"
         normalID = variantCaller=="Mutect2" ? idSample.replaceAll(".*vs_(.*)",'$1'):"NORMAL"
         refFasta = params.genome=='GRCh37' ? "/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz":"/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz" 
-        vepCache = "/rsrch3/home/thera_dis/p_eclipse_combio/.vep" 
+        vepCache = "/rsrch3/home/thera_dis/p_eclipse_combio/.vep"
+        maf_name = vcf.toString().replaceAll('vcf.*','') 
     """
     if [[ "$vcf" =~ .*gz ]];then 
         vcf_unzip=`echo $vcf|sed 's/.gz//g'`
@@ -3937,7 +3938,7 @@ process vcf2mafConvert {
     
     vcf2maf.pl \
 	  --input-vcf \$vcf_unzip \
-	  --output-maf ${idSample}.${variantCaller}.maf.tsv\
+	  --output-maf ${maf_name}.maf.tsv\
 	  --vep-path /opt/conda/envs/nf-core-sarek-2.7/bin \
 	  --ncbi-build ${params.genome} \
     --vep-data $vepCache \
