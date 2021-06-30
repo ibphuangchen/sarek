@@ -2132,7 +2132,7 @@ vcf_sentieon_DNAscope_SV = vcf_sentieon_DNAscope_SV.dump(tag:'sentieon DNAscope 
 // STEP STRELKA.1 - SINGLE MODE
 
 process StrelkaSingle {
-    label 'cpus_max'
+    label 'cpus_16'
     label 'memory_max'
 
     tag "${idSample}"
@@ -2751,7 +2751,7 @@ vcf_sentieon_compressed = vcf_sentieon_compressed.dump(tag:'Sentieon VCF indexed
 // STEP STRELKA.2 - SOMATIC PAIR
 
 process Strelka {
-    label 'cpus_max'
+    label 'cpus_16'
     label 'memory_max'
 
     tag "${idSampleTumor}_vs_${idSampleNormal}"
@@ -2866,7 +2866,7 @@ pairBamStrelkaBP = pairBamStrelkaBP.map {
 // STEP STRELKA.3 - SOMATIC PAIR - BEST PRACTICES
 
 process StrelkaBP {
-    label 'cpus_max'
+    label 'cpus_16'
     label 'memory_max'
 
     tag "${idSampleTumor}_vs_${idSampleNormal}"
