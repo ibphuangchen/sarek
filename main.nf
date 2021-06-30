@@ -3921,8 +3921,8 @@ process vcf2mafConvert {
         'vcf2maf' in tools
     
     script:
-        tumorID = idSample.replaceAll("(.*)_vs.*",'$1')
-        normalID = idSample.replaceAll(".*vs_(.*)",'$1')
+        tumorID = $variantCaller=="Mutect2" ? idSample.replaceAll("(.*)_vs.*",'$1'):"TUMOR"
+        normalID = $variantCaller=="Mutect2" ? idSample.replaceAll(".*vs_(.*)",'$1'):"NORMAL"
         refFasta = params.genome=='GRCh37' ? "/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz":"/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz" 
         vepCache = "/rsrch3/home/thera_dis/p_eclipse_combio/.vep" 
     """
