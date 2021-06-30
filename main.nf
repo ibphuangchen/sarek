@@ -3247,11 +3247,11 @@ process VarScan2Germline {
     """
         varscan \
             mpileup2snp ${mpileup} \
-            --output-vcf 1 > ${idSample}.snp.vcf
+            --output-vcf 1 > VarScan2_${idSample}.snp.vcf
 
         varscan \
              mpileup2indel ${mpileup} \
-             --output-vcf 1 > ${idSample}.indel.vcf
+             --output-vcf 1 > VarScan2_${idSample}.indel.vcf
     """
 }
 
@@ -3277,8 +3277,8 @@ process VarScan2Somatic {
     """
         varscan somatic \
             ${mpileupNormal} ${mpileupTumor} \
-            ${idSampleTumor}_vs_${idSampleNormal} \
-            --output-vcf 1 \
+            VarScan2_${idSampleTumor}_vs_${idSampleNormal} \
+            --output-vcf 1
 
     """
 }
