@@ -3698,11 +3698,11 @@ if (step == 'annotate') {
     vcfAnnotation = vcfAnnotation.mix(vcfToAnnotate)
 }
 
-vcfAnnotation.dump(tag:'vcfAnnotation')
 
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
-(vcfSnpeff, vcfVep, vcf2mafConvert) = vcfAnnotation.into(3)
+(vcfSnpeff, vcfVep, vcf2mafConvert, vcfAnnoDebug) = vcfAnnotation.into(4)
+vcfAnnoDebug.dump(tag:'vcfAnnoDebug')
 
 vcfVep = vcfVep.map {
   variantCaller, idSample, vcf ->
