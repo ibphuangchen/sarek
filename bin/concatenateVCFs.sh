@@ -85,7 +85,8 @@ then
 	      tail -n +$((L+1)) ${vcf}
 	    done
 	  done
-	) | bgzip -@${cpus} > rawcalls.vcf.gz
+	) |bcftools sort -Oz > rawcalls.vcf.gz
+	# add bcftools sort by Chen Huang
 	tabix rawcalls.vcf.gz
 else
         VCF=$(ls no_intervals*.vcf)
