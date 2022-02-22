@@ -951,7 +951,7 @@ fastQCReport = fastQCReport.dump(tag:'FastQC')
 
 process Bbduk {
     label 'Bbduk'
-    label 'cpus_max'
+    label 'memory_max'
     tag "${idPatient}-${idRun}"
 
     publishDir "${params.outdir}/Reports/${idSample}/Bbduk/${idSample}_${idRun}", mode: params.publish_dir_mode,
