@@ -4350,7 +4350,7 @@ def defineToolList() {
         'msisensor',
         'varscan2',
         'vcf2maf',
-        'getAAseqs'
+        'getaaseqs'
     ]
 }
 
