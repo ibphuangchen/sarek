@@ -154,6 +154,9 @@ def helpMessage() {
       --snpeff_db                   [str] snpEff Database version
       --species                     [str] Species for VEP
       --vep_cache_version           [int] VEP cache version
+      --VepCache                    [str] VEP cache path for vcf2maf
+      --VepRefFasta                 [str] VEP fasta reference for vcf2maf
+      --proteinDb                   [str] Protein and CDNA seq info used as the reference for getAAseqs   
 
     Other options:
       --outdir                     [file] The output directory where the results will be saved
@@ -3930,8 +3933,6 @@ process vcf2mafConvert {
         }
             
         
-        refFasta = params.genome=='GRCh37' ? "/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz":"/rsrch3/home/thera_dis/p_eclipse_combio/.vep/homo_sapiens/104_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz" 
-        vepCache = "/rsrch3/home/thera_dis/p_eclipse_combio/.vep"
         maf_name = vcf.toString().replaceAll('\\.vcf.*','') 
     """
     if [[ "$vcf" =~ .*gz ]];then 
@@ -3948,9 +3949,9 @@ process vcf2mafConvert {
 	  --output-maf ${maf_name}.maf.tsv\
 	  --vep-path /opt/conda/envs/nf-core-sarek-2.7/bin \
 	  --ncbi-build ${params.genome} \
-    --vep-data $vepCache \
+    --vep-data ${params.vepCache} \
 	  --species homo_sapiens \
-	  --ref-fasta $refFasta \
+	  --ref-fasta ${params.vepRefFasta} \
 	  --tumor-id $tumorID \
 	  --normal-id $normalID \
     --cache-version 104
@@ -3958,6 +3959,36 @@ process vcf2mafConvert {
 }
 
 vcf2mafFinal=vcf2mafFinal.dump(tag:'vcf2mafFinal')
+
+process getAAseqs {
+
+    tag "${idSample} - ${maf}"
+
+    publishDir "${params.outdir}/AAseqs/${idSample}", mode: params.publish_dir_mode
+
+    input:
+        set variantCaller, idSample, file(vcf), file(maf) from vcf2mafFinal
+    output:
+        set idSample, file("*.seq.tsv") into AAseq
+
+    when:
+        'getAAseq' in tools
+
+    script:
+    """
+    getFlankSeq4Sarek.R -n 13 \
+        -d ${params.proteinDb} \
+        -m ${maf} \
+        -o ${idSample}.flank.seq.tsv 
+    
+    getTotalSeq4Sarek.R -d ${params.proteinDb} \
+        -m ${maf} \
+        -o ${idSample}.total.seq.tsv
+    """
+
+}
+
+AAseq=AAseq.dump(tag:'AAseq')
 
 // STEP COMPRESS AND INDEX VCF.2 - VEP
 
