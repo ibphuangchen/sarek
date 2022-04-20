@@ -58,7 +58,7 @@ def helpMessage() {
       --target_bed                 [file] Target BED file for whole exome or targeted sequencing
                                           Default: None
       --tools                       [str] Specify tools to use for variant calling (multiple separated with commas):
-                                          Available: ASCAT, CNVkit, ControlFREEC, FreeBayes, HaplotypeCaller
+                                          Available: ASCAT, CNVkit, ControlFREEC, FreeBayes, HaplotypeCaller, varscan2, vcf2maf, getAAseq
                                           Manta, mpileup, MSIsensor, Mutect2, Strelka, TIDDIT
                                           and/or for annotation:
                                           snpEff, VEP, merge
@@ -3972,7 +3972,7 @@ process getAAseqs {
         set idSample, file("*.seq.tsv") into AAseq
 
     when:
-        'getAAseq' in tools
+        'getAAseqs' in tools && 'vcf2maf' in tools
 
     script:
     """
@@ -4349,7 +4349,8 @@ def defineToolList() {
         'vep',
         'msisensor',
         'varscan2',
-        'vcf2maf'
+        'vcf2maf',
+        'getAAseqs'
     ]
 }
 
