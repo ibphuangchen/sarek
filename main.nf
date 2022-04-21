@@ -3958,8 +3958,6 @@ process vcf2mafConvert {
     """
 }
 
-vcf2mafFinal=vcf2mafFinal.dump(tag:'vcf2mafFinal')
-
 process getAAseqs {
 
     tag "${idSample} - ${maf}"
