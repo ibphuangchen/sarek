@@ -184,4 +184,4 @@ flankSeqDt = getFlankSeq(totalMaf = fread(args$m),
                          cdnaProteinsEnsemble = fread(args$d),
                          flankAACount = args$n)
 
-fwrite(flankSeqDt, sep = '\t', file = parser$o)
+fwrite(flankSeqDt, sep = '\t', file = args$o)

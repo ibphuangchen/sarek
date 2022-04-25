@@ -172,4 +172,4 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
 totalSeqDt = getTotalSeq(totalMaf = fread(args$m), 
                          cdnaProteinsEnsemble = fread(args$d))
 
-fwrite(totalSeqDt, sep = '\t', file = parser$o)
+fwrite(totalSeqDt, sep = '\t', file = args$o)
