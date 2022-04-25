@@ -3243,7 +3243,7 @@ process VarScan2Germline {
         set idPatient, idSample, file(mpileup) from mpileupSingle4VarScan
 
     output:
-        set val("Strelka"), idPatient, idSample, file("*.vcf") into vcfVarScan2Single
+        set val("VarScan2"), idPatient, idSample, file("*.vcf") into vcfVarScan2Single
 
     when:
         'varscan2' in tools
@@ -3908,6 +3908,7 @@ vcfCompressVCFvep = vepVCF.mix(vepVCFmerge)
 
 vcf2mafConvert =  vcf2mafConvert.filter{it[0] in ['Mutect2','Strelka','VarScan2','HaplotypeCaller']}
 
+vcf2mafConvert = vcf2mafConvert.dump(tag:'tobemaf')
 
 process vcf2mafConvert {
     tag "${idSample} - ${vcf}"
@@ -3958,6 +3959,14 @@ process vcf2mafConvert {
     """
 }
 
+// vcf2mafFinal=vcf2mafFinal.dump(tag:'maf')
+vcf2mafFinal = vcf2mafFinal.map {
+    variantCaller, idSample, vcf, maf ->
+        [variantCaller, idSample, maf]    
+}
+
+vcf2mafFinal = vcf2mafFinal.dump(tag:'maf')
+
 process getAAseqs {
 
     tag "${idSample} - ${maf}"
@@ -3965,12 +3974,12 @@ process getAAseqs {
     publishDir "${params.outdir}/AAseqs/${idSample}", mode: params.publish_dir_mode
 
     input:
-        set variantCaller, idSample, file(vcf), file(maf) from vcf2mafFinal
+        set variantCaller, idSample, file(maf) from vcf2mafFinal
     output:
-        set idSample, file("*.seq.tsv") into AAseq
+        set variantCaller, idSample, file("*.seq.tsv") into AAseq
 
     when:
-        'getAAseqs' in tools && 'vcf2maf' in tools
+        'getaaseqs' in tools && 'vcf2maf' in tools
 
     script:
     """

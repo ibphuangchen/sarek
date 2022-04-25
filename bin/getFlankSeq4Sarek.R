@@ -139,7 +139,8 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
       aaChangeEndPepRef = length(refSeq)
       aaChangeStartPepNew = 0
       aaChangeEndPepNew = 0
-    }
+    }else
+			next
     flankList[[i]]=c(c2s(refSeq), aaChangeStartPepRef,aaChangeEndPepRef,
                      c2s(newSeq), aaChangeStartPepNew,aaChangeEndPepNew,
                      totalMaf$Variant_Classification[i],
@@ -179,8 +180,8 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
   return(flankList)
 }
 
-flankSeqDt = getFlankSeq(totalMaf = parser$m, 
-                         cdnaProteinsEnsemble = parser$d,
-                         flankAACount = parser$n)
+flankSeqDt = getFlankSeq(totalMaf = fread(args$m), 
+                         cdnaProteinsEnsemble = fread(args$d),
+                         flankAACount = args$n)
 
 fwrite(flankSeqDt, sep = '\t', file = parser$o)

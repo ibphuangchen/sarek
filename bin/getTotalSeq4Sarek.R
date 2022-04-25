@@ -128,7 +128,8 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
       aaChangeEndPepRef = length(refSeq)
       aaChangeStartPepNew = 0
       aaChangeEndPepNew = 0
-    }
+    }else
+				next
     flankList[[i]]=c(c2s(refSeq), aaChangeStartPepRef,aaChangeEndPepRef,
                      c2s(newSeq), aaChangeStartPepNew,aaChangeEndPepNew,
                      totalMaf$Variant_Classification[i],
@@ -168,7 +169,7 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
   return(flankList)
 }
 
-totalSeqDt = getTotalSeq(totalMaf = parser$m, 
-                         cdnaProteinsEnsemble = parser$d)
+totalSeqDt = getTotalSeq(totalMaf = fread(args$m), 
+                         cdnaProteinsEnsemble = fread(args$d))
 
 fwrite(totalSeqDt, sep = '\t', file = parser$o)
