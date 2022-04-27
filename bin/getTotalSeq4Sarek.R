@@ -18,12 +18,18 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
     ##for frameshift mutations, HGVSp_Short and Protein_position can be different; Protein_position and CDS_position are always the same
     #for duplication from inframe insertion, HGVSp_Short always annoate the last AA;
     #however, there are still inconsiseny that I can't resolve, like COSV57128135 records are different from: p.A390_A391insC       RBM23
+    if(totalMaf$HGVSp_Short[i]=='') next
     aaPos = gsub(totalMaf$Protein_position[i],pattern = '^([0-9]+).*',replacement = '\\1')
     aaPos = as.numeric(aaPos)
     startPos = ifelse(aaPos<(flankAACount+1), 1, aaPos-flankAACount) #if aaPos is less or equal flankAACount (13)
     protein = seqinr::s2c(cdnaProteinsEnsemble[totalMaf$Transcript_ID[i],proSeq,on='txID_s'])
     varType = totalMaf$Variant_Classification[i]
+
     if(varType=="Missense_Mutation"){
+      if(totalMaf$Variant_Type[i]!='SNP'){
+        warning(paste0("cannot resolve the mutation type at #row:", i))
+        next
+      }
       refAA=gsub(totalMaf$Amino_acids[i],pattern = '/.*',replacement = '')
       newAA=gsub(totalMaf$Amino_acids[i],pattern = '.*/',replacement = '')
       #stopifnot(protein[aaPos]==refAA)
@@ -42,6 +48,7 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
       cdsUTR = seqinr::s2c(cdnaProteinsEnsemble[totalMaf$Transcript_ID[i],cds_3utr,on='txID_s'])
       if(length(cds)%%3 !=0) #ensembl seq bug
         next
+        
       insPos = as.numeric(gsub(totalMaf$CDS_position[i],pattern = '^([0-9]+).*',replacement = '\\1'))
       stopifnot(totalMaf$Reference_Allele[i]=='-')
       insDNAseq=s2c(totalMaf$Tumor_Seq_Allele2[i])
@@ -52,7 +59,7 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
       if(varType=='In_Frame_Ins'){
         newDNA=c(cds[1:insPos],insDNAseq,cds[(insPos+1):length(cds)])
         newProtein=seqinr::translate(newDNA)
-        stopifnot(newProtein[length(newProtein)]=='*')
+        #stopifnot(newProtein[length(newProtein)]=='*')
         
         endPos = ifelse(aaPos> length(protein)-13, length(protein), aaPos+13)
         refSeq=protein[startPos:endPos]
@@ -82,14 +89,41 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
       cdsUTR = seqinr::s2c(cdnaProteinsEnsemble[totalMaf$Transcript_ID[i],cds_3utr,on='txID_s'])
       if(length(cds)%%3 !=0) #ensembl seq bug
         next
-      delBaseStart = as.numeric(gsub(totalMaf$CDS_position[i], pattern = '^([0-9]+).*',replacement = '\\1'))
+      
+      ##based on CDS_position column
+      delBaseStart1 = as.numeric(gsub(totalMaf$CDS_position[i], 
+                                     pattern = '^([0-9]+).*',
+                                     replacement = '\\1'))
       if(grepl(totalMaf$CDS_position[i],pattern = '-'))
-        delBaseEnd = as.numeric(gsub(totalMaf$CDS_position[i], pattern = '.*-([0-9]+)/.*',replacement = '\\1'))
+        delBaseEnd1 = as.numeric(gsub(totalMaf$CDS_position[i], 
+                                     pattern = '.*-([0-9]+)/.*',
+                                     replacement = '\\1'))
       else
-        delBaseEnd=delBaseStart
+        delBaseEnd1=delBaseStart1
+      
+      ##based on HGVSc column
+      delBaseStart2 = as.numeric(gsub(totalMaf$HGVSc[i], 
+                                      pattern = 'c\\.([0-9]+).*',
+                                      replacement = '\\1'))
+      if(grepl(totalMaf$HGVSc[i],pattern = '_'))
+        delBaseEnd2 = as.numeric(gsub(totalMaf$HGVSc[i], 
+                                      pattern = '.*_([0-9]+)del',
+                                      replacement = '\\1'))
+      else
+        delBaseEnd2=delBaseStart2
+      
       delSeq=s2c(totalMaf$Reference_Allele[i])
       if(totalMaf$STRAND_VEP[i]==-1) delSeq=rev(comp(delSeq))
-      stopifnot(all(toupper(delSeq)==cds[delBaseStart:delBaseEnd]))
+      if(all(toupper(delSeq)==cds[delBaseStart1:delBaseEnd1])){
+        delBaseStart=delBaseStart1
+        delBaseEnd=delBaseEnd1
+      }else if(all(toupper(delSeq)==cds[delBaseStart2:delBaseEnd2])){
+        delBaseStart=delBaseStart2
+        delBaseEnd=delBaseEnd2
+      }else{
+        warning(paste0('cannot resolve delete seq at #row: ',i))
+        next
+      }
       
       aaChangeStartPepRef = aaPos - startPos +1
       aaChangeStartPepNew = aaChangeStartPepRef
@@ -97,11 +131,11 @@ getTotalSeq=function(totalMaf, cdnaProteinsEnsemble){
       if(varType=='In_Frame_Del'){
         newDNA=c(cds[1:(delBaseStart-1)],cds[(delBaseEnd+1):length(cds)])
         newProtein=seqinr::translate(newDNA)
-        stopifnot(newProtein[length(newProtein)]=='*')
+        #stopifnot(newProtein[length(newProtein)]=='*')
         
         endPos = ifelse(aaPos> length(protein)-13, length(protein), aaPos+13) #for the ref, AA endPos is predictable
-        refSeq = newProtein[startPos:endPos]
-        newSeq=newProtein[startPos:(endPos-floor(length(delSeq)/3))]
+        refSeq = protein[startPos:endPos]
+        newSeq = newProtein[startPos:(endPos-floor(length(delSeq)/3))]
         
         aaChangeEndPepNew = aaChangeStartPepNew
         aaChangeEndPepRef = aaChangeStartPepRef+length(delSeq)/3

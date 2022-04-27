@@ -2,23 +2,23 @@
 
 library(seqinr)
 suppressPackageStartupMessages(library("data.table"))
-# options = commandArgs(trailingOnly = TRUE)
 suppressPackageStartupMessages(library("argparse"))
 parser <- ArgumentParser()
 parser$add_argument("-m", "--maf", type='character',default=TRUE,
                     help="MAF file")
-parser$add_argument("-d", "--databse", type="character", 
+parser$add_argument("-d", "--databse", type="character",
                     help="Protein and CDS database")
-parser$add_argument("-n", "--num", type="integer", default=13, 
+parser$add_argument("-n", "--num", type="integer", default=13,
                     help="the length of flanking sequence")
-parser$add_argument("-o", "--out", type="character", 
+parser$add_argument("-o", "--out", type="character",
                     help="output")
 args <- parser$parse_args()
 
 getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
   flankList=list()
   for(i in 1:nrow(totalMaf)){
-    ##For frameshift mutations, HGVSp_Short and Protein_position can be different; Protein_position and CDS_position are always the same
+    if(totalMaf$HGVSp_Short[i]=='') next
+    ##For fs mutations, HGVSp_Short and Protein_position can be different; Protein_position and CDS_position are always the same
     ##For duplication from inframe insertion, HGVSp_Short always annotates the last AA;
     ##However, there are still inconsistency that I can't resolve, like COSV57128135 records are different from: p.A390_A391insC       RBM23
     aaPos = gsub(totalMaf$Protein_position[i],pattern = '^([0-9]+).*',replacement = '\\1')
@@ -27,6 +27,10 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
     protein = seqinr::s2c(cdnaProteinsEnsemble[totalMaf$Transcript_ID[i],proSeq,on='txID_s'])
     varType = totalMaf$Variant_Classification[i]
     if(varType=="Missense_Mutation"){
+      if(totalMaf$Variant_Type[i]!='SNP'){
+        warning(paste0("cannot resolve the mutation type at #row:", i))
+        next
+      }
       refAA=gsub(totalMaf$Amino_acids[i],pattern = '/.*',replacement = '')
       newAA=gsub(totalMaf$Amino_acids[i],pattern = '.*/',replacement = '')
       #stopifnot(protein[aaPos]==refAA)
@@ -63,7 +67,7 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
       if(varType=='In_Frame_Ins'){
         newDNA=c(cds[1:insPos],insDNAseq,cds[(insPos+1):length(cds)])
         newProtein=seqinr::translate(newDNA)
-        stopifnot(newProtein[length(newProtein)]=='*')
+        #stopifnot(newProtein[length(newProtein)]=='*')
         
         endPos = ifelse(aaPos> length(protein)-13, length(protein), aaPos+13)
         refSeq=protein[startPos:endPos]
@@ -79,7 +83,7 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
         if(!grepl(totalMaf$HGVSp_Short[i],pattern = ".*fs\\*[0-9]+")) next #will skip for p.N751* or p.M1?
         ##e.g. p.V156Sfs*6 will be 156+6
         ##for the frameshift, using the aaPos in HGVsp
-        aaPos=as.numeric(gsub(totalMaf$HGVSp_Short[i],pattern = '.*[A-Z]([0-9]+).*',replacement = '\\1'))
+        aaPos=as.numeric(gsub(totalMaf$HGVSp_Short[i],pattern = '.*(\\*|[A-Z])([0-9]+)[A-Z]fs.*',replacement = '\\2'))
         endPos = as.numeric(gsub(totalMaf$HGVSp_Short[i],pattern = '.*fs\\*',replacement = ''))+aaPos-1
         startPos = ifelse(aaPos<(flankAACount+1), 1, aaPos-flankAACount)
         newSeq=newProtein[startPos:endPos]
@@ -93,14 +97,40 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
       cdsUTR = seqinr::s2c(cdnaProteinsEnsemble[totalMaf$Transcript_ID[i],cds_3utr,on='txID_s'])
       if(length(cds)%%3 !=0) #ensembl seq bug
         next
-      delBaseStart = as.numeric(gsub(totalMaf$CDS_position[i], pattern = '^([0-9]+).*',replacement = '\\1'))
+      ##based on CDS_position column
+      delBaseStart1 = as.numeric(gsub(totalMaf$CDS_position[i], 
+                                     pattern = '^([0-9]+).*',
+                                     replacement = '\\1'))
       if(grepl(totalMaf$CDS_position[i],pattern = '-'))
-        delBaseEnd = as.numeric(gsub(totalMaf$CDS_position[i], pattern = '.*-([0-9]+)/.*',replacement = '\\1'))
+        delBaseEnd1 = as.numeric(gsub(totalMaf$CDS_position[i], 
+                                     pattern = '.*-([0-9]+)/.*',
+                                     replacement = '\\1'))
       else
-        delBaseEnd=delBaseStart
+        delBaseEnd1=delBaseStart1
+      
+      ##based on HGVSc
+      delBaseStart2 = as.numeric(gsub(totalMaf$HGVSc[i], 
+                                      pattern = 'c\\.([0-9]+).*',
+                                      replacement = '\\1'))
+      if(grepl(totalMaf$HGVSc[i],pattern = '_'))
+        delBaseEnd2 = as.numeric(gsub(totalMaf$HGVSc[i], 
+                                      pattern = '.*_([0-9]+)del',
+                                      replacement = '\\1'))
+      else
+        delBaseEnd2=delBaseStart2
+      
       delSeq=s2c(totalMaf$Reference_Allele[i])
       if(totalMaf$STRAND_VEP[i]==-1) delSeq=rev(comp(delSeq))
-      stopifnot(all(toupper(delSeq)==cds[delBaseStart:delBaseEnd]))
+      if(all(toupper(delSeq)==cds[delBaseStart1:delBaseEnd1])){
+        delBaseStart=delBaseStart1
+        delBaseEnd=delBaseEnd1
+      }else if(all(toupper(delSeq)==cds[delBaseStart2:delBaseEnd2])){
+        delBaseStart=delBaseStart2
+        delBaseEnd=delBaseEnd2
+      }else{
+        warning(paste0('cannot resolve delete seq at #row: ',i))
+        next
+      }
       
       aaChangeStartPepRef = aaPos - startPos +1
       aaChangeStartPepNew = aaChangeStartPepRef
@@ -108,10 +138,10 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
       if(varType=='In_Frame_Del'){
         newDNA=c(cds[1:(delBaseStart-1)],cds[(delBaseEnd+1):length(cds)])
         newProtein=seqinr::translate(newDNA)
-        stopifnot(newProtein[length(newProtein)]=='*')
+        #stopifnot(newProtein[length(newProtein)]=='*')
         
         endPos = ifelse(aaPos> length(protein)-13, length(protein), aaPos+13) #for the ref, AA endPos is predictable
-        refSeq = newProtein[startPos:endPos]
+        refSeq = protein[startPos:endPos]
         newSeq=newProtein[startPos:(endPos-floor(length(delSeq)/3))]
         
         aaChangeEndPepNew = aaChangeStartPepNew
@@ -122,7 +152,7 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
         
         if(!grepl(totalMaf$HGVSp_Short[i],pattern = ".*fs\\*[0-9]+")) next #will skip for p.N751* or p.M1?
         ##e.g. p.V156Sfs*6 will be 156+6
-        aaPos=as.numeric(gsub(totalMaf$HGVSp_Short[i],pattern = '.*[A-Z]([0-9]+).*',replacement = '\\1'))
+        aaPos=as.numeric(gsub(totalMaf$HGVSp_Short[i],pattern = '.*(\\*|[A-Z])([0-9]+)[A-Z]fs.*',replacement = '\\2'))
         endPos = as.numeric(gsub(totalMaf$HGVSp_Short[i],pattern = '.*fs\\*',replacement = ''))+aaPos-1
         startPos = ifelse(aaPos<(flankAACount+1), 1, aaPos-flankAACount)
         newSeq=newProtein[startPos:endPos]
@@ -180,7 +210,7 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
   return(flankList)
 }
 
-flankSeqDt = getFlankSeq(totalMaf = fread(args$m), 
+flankSeqDt = getFlankSeq(totalMaf = fread(args$m),
                          cdnaProteinsEnsemble = fread(args$d),
                          flankAACount = args$n)
 
