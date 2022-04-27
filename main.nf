@@ -3986,11 +3986,8 @@ process getAAseqs {
     getFlankSeq4Sarek.R -n 13 \
         -d ${params.proteinDb} \
         -m ${maf} \
-        -o ${idSample}.flank.seq.tsv 
+        -o ${variantCaller}_${idSample}.flank.seq.tsv 
     
-    getTotalSeq4Sarek.R -d ${params.proteinDb} \
-        -m ${maf} \
-        -o ${idSample}.total.seq.tsv
     """
 
 }

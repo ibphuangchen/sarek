@@ -18,6 +18,7 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
   flankList=list()
   for(i in 1:nrow(totalMaf)){
     if(totalMaf$HGVSp_Short[i]=='') next
+    print(i)
     ##For fs mutations, HGVSp_Short and Protein_position can be different; Protein_position and CDS_position are always the same
     ##For duplication from inframe insertion, HGVSp_Short always annotates the last AA;
     ##However, there are still inconsistency that I can't resolve, like COSV57128135 records are different from: p.A390_A391insC       RBM23
@@ -58,7 +59,10 @@ getFlankSeq=function(totalMaf, cdnaProteinsEnsemble, flankAACount=13){
       if(length(cds)%%3 !=0) #ensembl seq bug
         next
       insPos = as.numeric(gsub(totalMaf$CDS_position[i],pattern = '^([0-9]+).*',replacement = '\\1'))
-      stopifnot(totalMaf$Reference_Allele[i]=='-')
+      if (totalMaf$Reference_Allele[i]!='-'){
+        warning(paste0('cannot resolve insert position at: '),i)
+        next
+      }
       insDNAseq=s2c(totalMaf$Tumor_Seq_Allele2[i])
       if(totalMaf$STRAND_VEP[i]==-1) insDNAseq=rev(comp(insDNAseq))
       aaChangeStartPepRef = aaPos - startPos +1
