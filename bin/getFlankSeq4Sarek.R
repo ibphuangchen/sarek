@@ -23,9 +23,14 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
     ##For frameshift mutations, HGVSp_Short and Protein_position can be different; Protein_position and CDS_position are always the same
     ##For duplication from inframe insertion, HGVSp_Short always annotates the last AA;
     ##However, there are still inconsistency that I can't resolve, like COSV57128135 records are different from: p.A390_A391insC       RBM23
-    if(totalMaf$HGVSp_Short[i]=='') next
     aaPos = gsub(totalMaf$Protein_position[i],pattern = '^([0-9]+).*',replacement = '\\1')
     aaPos = as.numeric(aaPos)
+
+		if(totalMaf$HGVSp_Short[i]==''|is.na(aaPos)) {
+			warning(paste0('Cannot resolve at line ',i))
+			next
+		}
+
     startPos = ifelse(aaPos<(flankAACount+1), 1, aaPos-flankAACount) #if aaPos is less or equal flankAACount (13)
     protein = s2c(ensemblSeq[totalMaf$Transcript_ID[i],proteinSeq,on='TxID'])
     cdna = s2c(ensemblSeq[totalMaf$Transcript_ID[i],coding,on='TxID']) #this is only coding
@@ -68,7 +73,10 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
       if(varType=='In_Frame_Ins'){
         newDNA=c(cdna[1:insPos],insDNAseq,cdna[(insPos+1):length(cdna)])
         newProtein=translate(newDNA)
-        #stopifnot(newProtein[length(newProtein)]=='*')
+
+        if(newProtein[length(newProtein)]!='*')
+					warning(paste0('Possible error in line ',i,", type In_Frame_Ins"))
+
         endPos = ifelse(aaPos> length(protein)-flankAACount, length(protein), aaPos+flankAACount)
         refSeq=protein[startPos:endPos]
         newSeq=newProtein[startPos:(endPos+floor(length(insDNAseq)/3))]
@@ -119,7 +127,8 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
       if(varType=='In_Frame_Del'){
         newDNA=c(cdna[1:(delBaseStart-1)],cdna[(delBaseEnd+1):length(cdna)])
         newProtein=translate(newDNA)
-        stopifnot(newProtein[length(newProtein)]=='*')
+        if (newProtein[length(newProtein)]!='*')
+					warning(paste0('Possible error in line ',i,', type In_Frame_Del'))
         
         endPos = ifelse(aaPos> length(protein)-flankAACount, length(protein), aaPos+flankAACount)
         refSeq=protein[startPos:endPos]
@@ -225,8 +234,12 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
   return(flankList)
 }
 
-flankSeqDt = getFlankSeq(totalMaf = fread(args$m),
-                         cdnaProteinsEnsemble = fread(args$d),
-                         flankAACount = args$n)
+flankSeqDt = getFlankSeq(fread(args$m),
+                         fread(args$d),
+                         args$n)
 
-fwrite(flankSeqDt, sep = '\t', file = args$o)
+flankSeqDt[,dedup:=paste0(dbSNP_ID,'_',Transcript_ID,'_',HGVSp_Short)]
+flankSeqDt_Dedup = flankSeqDt[!duplicated(dedup)]
+flankSeqDt_Dedup$dedup=NULL
+
+fwrite(flankSeqDt_Dedup, sep = '\t', quote=F, file = args$o)

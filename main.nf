@@ -3919,7 +3919,7 @@ process vcf2mafConvert {
         set variantCaller, idSample, file(vcf) from vcf2mafConvert
 
     output:
-        set variantCaller, idSample, file("*.vcf"), file("*.maf.tsv") into vcf2mafFinal
+        set maf_name, file("*.maf.tsv") into vcf2mafFinal
 
     when:
         'vcf2maf' in tools
@@ -3959,11 +3959,6 @@ process vcf2mafConvert {
     """
 }
 
-// vcf2mafFinal=vcf2mafFinal.dump(tag:'maf')
-vcf2mafFinal = vcf2mafFinal.map {
-    variantCaller, idSample, vcf, maf ->
-        [variantCaller, idSample, maf]    
-}
 
 vcf2mafFinal = vcf2mafFinal.dump(tag:'maf')
 
@@ -3974,9 +3969,9 @@ process getAAseqs {
     publishDir "${params.outdir}/AAseqs/${idSample}", mode: params.publish_dir_mode
 
     input:
-        set variantCaller, idSample, file(maf) from vcf2mafFinal
+        set maf_name, file(maf) from vcf2mafFinal
     output:
-        set variantCaller, idSample, file("*.seq.tsv") into AAseq
+        set file("*.seq.tsv"), file("*.warning.txt") into AAseq
 
     when:
         'getaaseqs' in tools && 'vcf2maf' in tools
@@ -3986,7 +3981,7 @@ process getAAseqs {
     getFlankSeq4Sarek.R -n 13 \
         -d ${params.proteinDb} \
         -m ${maf} \
-        -o ${variantCaller}_${idSample}.flank.seq.tsv 
+        -o ${maf_name}.flank.seq.tsv &> ${maf_name}.getFlankSeq.warning.txt 
     
     """
 
