@@ -3919,7 +3919,7 @@ process vcf2mafConvert {
         set variantCaller, idSample, file(vcf) from vcf2mafConvert
 
     output:
-        set maf_name, file("*.maf.tsv") into vcf2mafFinal
+        set idSample, maf_name, file("*.maf.tsv") into vcf2mafFinal
 
     when:
         'vcf2maf' in tools
@@ -3969,7 +3969,7 @@ process getAAseqs {
     publishDir "${params.outdir}/AAseqs/${idSample}", mode: params.publish_dir_mode
 
     input:
-        set maf_name, file(maf) from vcf2mafFinal
+        set idSample, maf_name, file(maf) from vcf2mafFinal
     output:
         set file("*.seq.tsv"), file("*.warning.txt") into AAseq
 

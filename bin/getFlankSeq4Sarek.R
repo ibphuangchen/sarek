@@ -40,15 +40,17 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
     if(varType=="Missense_Mutation"){
       refAA=gsub(totalMaf$Amino_acids[i],pattern = '/.*',replacement = '')
       newAA=gsub(totalMaf$Amino_acids[i],pattern = '.*/',replacement = '')
-      #stopifnot(protein[aaPos]==refAA)
-      if(aaPos>length(protein) | protein[aaPos]!=refAA) {
+      
+			if(aaPos>length(protein) | 
+				 protein[aaPos]!=refAA |
+				 aaPos==as.numeric(gsub(totalMaf$HGVSp_Short[i],
+																pattern = '.*?([0-9]+).*',
+																replacement = '\\1'))) {
         warning(paste0("reference sequence does not match maf file, nrow=",i,"type Missense_Mutation"))
         next
       }
-      stopifnot(aaPos==as.numeric(gsub(totalMaf$HGVSp_Short[i],
-                                       pattern = '.*?([0-9]+).*',
-                                       replacement = '\\1')))
-      endPos = ifelse(aaPos> length(protein)-flankAACount, length(protein), aaPos+flankAACount)
+      
+			endPos = ifelse(aaPos> length(protein)-flankAACount, length(protein), aaPos+flankAACount)
       refSeq= c2s(protein[startPos:endPos])
       newSeq= c2s(c(protein[startPos:(aaPos-1)], newAA, protein[(aaPos+1):endPos]))
       
@@ -119,7 +121,11 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
         delBaseEnd=delBaseStart
       delSeq=s2c(totalMaf$Reference_Allele[i])
       if(totalMaf$STRAND_VEP[i]==-1) delSeq=rev(comp(delSeq))
-      stopifnot(all(toupper(delSeq)==cdna[delBaseStart:delBaseEnd]))
+      
+			if(all(toupper(delSeq)==cdna[delBaseStart:delBaseEnd])){
+				warning(paste0('error in line ',i,', type ',varType))
+				next
+			}
       
       aaChangeStartPepNew = aaPos - startPos +1
       aaChangeStartPepRef = aaChangeStartPepNew
