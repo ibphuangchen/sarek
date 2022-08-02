@@ -27,7 +27,7 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
     aaPos = as.numeric(aaPos)
 
 		if(totalMaf$HGVSp_Short[i]==''|is.na(aaPos)) {
-			warning(paste0('Cannot resolve at line ',i))
+			print(paste0('Cannot resolve at line ',i))
 			next
 		}
 
@@ -43,7 +43,7 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
       
 			if(aaPos>length(protein) | 
 				 protein[aaPos]!=refAA |
-				 aaPos==as.numeric(gsub(totalMaf$HGVSp_Short[i],
+				 aaPos!=as.numeric(gsub(totalMaf$HGVSp_Short[i],
 																pattern = '.*?([0-9]+).*',
 																replacement = '\\1'))) {
         warning(paste0("reference sequence does not match maf file, nrow=",i,"type Missense_Mutation"))
@@ -73,13 +73,18 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
       aaChangeStartPepNew = aaChangeStartPepRef
       
       if(varType=='In_Frame_Ins'){
+				if(grepl(totalMaf$Protein_position[i],pattern = '-')){
+					aaPos2 = gsub(totalMaf$Protein_position[i],pattern = '.*-([0-9]+)/.*',replacement = '\\1')
+					aaPos2 = as.numeric(aaPos2)
+				}else aaPos2 = aaPos
+
         newDNA=c(cdna[1:insPos],insDNAseq,cdna[(insPos+1):length(cdna)])
         newProtein=translate(newDNA)
 
         if(newProtein[length(newProtein)]!='*')
 					warning(paste0('Possible error in line ',i,", type In_Frame_Ins"))
 
-        endPos = ifelse(aaPos> length(protein)-flankAACount, length(protein), aaPos+flankAACount)
+        endPos = ifelse(aaPos2> length(protein)-flankAACount, length(protein), aaPos2+flankAACount)
         refSeq=protein[startPos:endPos]
         newSeq=newProtein[startPos:(endPos+floor(length(insDNAseq)/3))]
         
@@ -122,7 +127,7 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
       delSeq=s2c(totalMaf$Reference_Allele[i])
       if(totalMaf$STRAND_VEP[i]==-1) delSeq=rev(comp(delSeq))
       
-			if(all(toupper(delSeq)==cdna[delBaseStart:delBaseEnd])){
+			if(all(toupper(delSeq)!=cdna[delBaseStart:delBaseEnd])){
 				warning(paste0('error in line ',i,', type ',varType))
 				next
 			}
@@ -131,12 +136,18 @@ getFlankSeq=function(totalMaf, ensemblSeq, flankAACount=13){
       aaChangeStartPepRef = aaChangeStartPepNew
       
       if(varType=='In_Frame_Del'){
+				if(grepl(totalMaf$Protein_position[i],pattern = '-')){
+					aaPos2 = gsub(totalMaf$Protein_position[i],pattern = '.*-([0-9]+)/.*',replacement = '\\1')
+					aaPos2 = as.numeric(aaPos2)
+				}else aaPos2 = aaPos
+
         newDNA=c(cdna[1:(delBaseStart-1)],cdna[(delBaseEnd+1):length(cdna)])
         newProtein=translate(newDNA)
         if (newProtein[length(newProtein)]!='*')
 					warning(paste0('Possible error in line ',i,', type In_Frame_Del'))
         
-        endPos = ifelse(aaPos> length(protein)-flankAACount, length(protein), aaPos+flankAACount)
+        endPos = ifelse(aaPos2 > length(protein)-flankAACount, 
+												length(protein), aaPos2+flankAACount)
         refSeq=protein[startPos:endPos]
         newSeq=newProtein[startPos:(endPos-floor(length(delSeq)/3))]
         
